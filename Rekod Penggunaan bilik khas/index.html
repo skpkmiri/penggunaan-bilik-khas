@@ -3,808 +3,489 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Rekod Penggunaan Bilik Khas</title>
+    <title>Portal SKPK Miri</title>
     
-    <!-- Tailwind CSS -->
+    <!-- Tetapan Ikon untuk Telefon Bimbit (Home Screen) -->
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SKPK Miri">
+    <meta name="theme-color" content="#1e3a8a">
+
+    <!-- Memuatkan Tailwind CSS untuk gaya paparan moden -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuatkan ikon dari Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Memuatkan font dari Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- Firebase SDKs (Compat versions for CDN) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
     <style>
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #f8fafc;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 32px 32px;
         }
-        .signature-canvas {
-            touch-action: none; /* Prevent scrolling when signing on mobile */
-        }
-        
-        /* Custom Scrollbar for table container */
-        .table-container::-webkit-scrollbar {
-            height: 8px;
-            width: 8px;
-        }
-        .table-container::-webkit-scrollbar-track {
-            background: #f1f5f9; 
-            border-radius: 4px;
-        }
-        .table-container::-webkit-scrollbar-thumb {
-            background: #cbd5e1; 
-            border-radius: 4px;
-        }
-        .table-container::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; 
+        /* Animasi halus untuk buka/tutup menu */
+        .menu-content {
+            transition: all 0.3s ease-in-out;
         }
     </style>
 </head>
-<body>
-    <div id="root"></div>
+<body class="min-h-screen relative pb-10">
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+    <!-- Latar belakang hiasan -->
+    <div class="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-blue-900 to-transparent -z-10"></div>
 
-        // --- Firebase Initialization ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyAJystIPJw8wsARLExAgOS94AgO8-QIzN8",
-            authDomain: "penggunaan-bilik-khas.firebaseapp.com",
-            projectId: "penggunaan-bilik-khas",
-            storageBucket: "penggunaan-bilik-khas.firebasestorage.app",
-            messagingSenderId: "956304510491",
-            appId: "1:956304510491:web:8d072aa8ac919b5bf0b2be",
-            measurementId: "G-BSY6FT0W51"
-        };
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12">
+        
+        <!-- Bahagian Pengepala (Header) -->
+        <div class="text-center mb-10 md:mb-14">
+            <div class="inline-flex items-center justify-center w-24 h-24 md:w-28 md:h-28 bg-white rounded-full shadow-lg mb-4 md:mb-6 border-4 border-blue-50/50 overflow-hidden p-1">
+                <img src="logo.png" alt="Logo SKPK Miri" class="w-full h-full object-contain rounded-full" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=SKPK';">
+            </div>
+            <h1 class="text-3xl md:text-5xl font-bold text-white mb-2 tracking-tight">Portal SKPK Miri</h1>
+            
+            <!-- Paparan Jam Digital -->
+            <div class="mt-4 md:mt-6 inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-5 py-2 rounded-full shadow-sm text-xs md:text-sm font-semibold text-white border border-white/20">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+                <span id="live-clock">Memuatkan masa...</span>
+            </div>
+        </div>
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const collectionPath = `artifacts/${appId}/public/data/room_bookings`;
+        <!-- Senarai Kategori Utama (Accordion & Pautan Utama) -->
+        <div class="space-y-4">
 
-        // --- Pemalar Tetapan ---
-        const ROOMS = [
-            { id: 'bilik-mesyuarat', name: 'Bilik Mesyuarat', icon: 'fa-users' },
-            { id: 'makmal-sains', name: 'Makmal Sains', icon: 'fa-flask' },
-            { id: 'surau', name: 'Surau / Bilik Agama', icon: 'fa-moon' },
-            { id: 'bilik-komputer', name: 'Bilik Komputer', icon: 'fa-desktop' },
-            { id: 'pusat-sumber', name: 'Pusat Sumber Sekolah', icon: 'fa-book' }
-        ];
+            <!-- Pautan Utama: Site Sekolah & Pusat Data -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Site Sekolah -->
+                <a href="https://sites.google.com/moe-dl.edu.my/skpkmiri" target="_blank" rel="noopener noreferrer" class="w-full bg-white rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all border border-slate-100 flex items-center gap-4 group">
+                    <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="globe" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-base md:text-lg font-bold text-slate-800 group-hover:text-sky-600 transition-colors leading-tight">Laman Web Sekolah</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-sky-50 group-hover:text-sky-600 transition-colors shrink-0">
+                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                    </div>
+                </a>
 
-        const USAGE_OPTIONS = ['PDPC', 'Mesyuarat', 'Taklimat', 'PLC', 'Lain-lain'];
+                <!-- Pusat Data Sekolah -->
+                <a href="https://lookerstudio.google.com/reporting/9a4a4ec1-fa91-4181-98ae-4fdd314bc1d9" target="_blank" rel="noopener noreferrer" class="w-full bg-white rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all border border-slate-100 flex items-center gap-4 group">
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="database" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-base md:text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors leading-tight">Pusat Data Sekolah</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors shrink-0">
+                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                    </div>
+                </a>
+            </div>
 
-        const CLASS_OPTIONS = [
-            '1 BP', '2 BP', '3 BP', '4 BP', '5 BP', '6 BP',
-            '1 BD', '3 BD', '4 BD', '5 BD', '6 BD', '4BL',
-            'Lain-lain'
-        ];
-
-        const STAFF_LIST = [
-            "AZIZ BIN TAHIR", "MOHAMAD ABIDIN BIN SIPEK", "LING MEE CHOO", "SALIHIN BIN AHMAD",
-            "AIDA MASTURINA BINTI HAMKA", "AIFA NUR BESTARI BINTI RADUAN", "BRYAN ANAK CONSTANT",
-            "CHRISTIAN SIMON", "DLIYANA ANAK JOHN", "EIFILISIA AMBER ANAK MERVIN", "FAZRI BIN BAKERI",
-            "HAIROL BIN ISMAIL", "HILWA HAYATI BINTI MOHAMAD AJALAN", "JACQUELINE TIONG HOE DING",
-            "JERIAH ANAK SIMON", "JIMMY ANAK PETER", "KHAIRI BIN SAHARI", "MARY JANE AMOI UMPANG ANAK DANIEL MAWAT",
-            "MOHD RAFEEQ BIN SULAIMAN", "MUHAMMAD ZULHUSAINI BIN ABDUL WAHAB", "NUR HIDAYU BINTI YUSOP",
-            "NURUL HUDA BTE MOHD IHWAN", "NUR AZLIN BINTI NORIZAN", "NUR FADZLIAH AMAL BINTI OSMAN",
-            "SABARIAH BINTI SOLHI", "SYAEEZA LIANA BINTI RAMLI", "TENG RU YUN", "TING HUA EE",
-            "TING YU YONG", "VANITHA A/P SUBRAMANIAM", "WONG PICK KING", "ZEPRINA ANAK BENIK",
-            "NORMIRI BINTI ABDULLAH", "HAZUANI BINTI HIPNI", "HELLEN RANJA ANAK BELI",
-            "NORAISYAH BINTI ASHARI", "KAMARIA BINTI BUJANG", "AZENI BIN MAT", "EVELYN SENA ANAK USSIK",
-            "MARIATI BINTI JULAIHI", "ALEXANDER LIPA ANAK RANTIE"
-        ];
-
-        // --- Signature Pad Component ---
-        const SignaturePad = ({ onSignatureChange, clearTrigger }) => {
-            const canvasRef = useRef(null);
-            const [isDrawing, setIsDrawing] = useState(false);
-            const [hasContent, setHasContent] = useState(false);
-
-            useEffect(() => {
-                const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.lineWidth = 2;
-                ctx.lineCap = 'round';
-                ctx.strokeStyle = '#1e293b'; 
-            }, []);
-
-            useEffect(() => {
-                if (clearTrigger > 0) {
-                    const canvas = canvasRef.current;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = "#ffffff";
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    setHasContent(false);
-                    onSignatureChange(null);
-                }
-            }, [clearTrigger]);
-
-            const getCoordinates = (e) => {
-                const canvas = canvasRef.current;
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                let clientX, clientY;
-                if (e.touches && e.touches.length > 0) {
-                    clientX = e.touches[0].clientX;
-                    clientY = e.touches[0].clientY;
-                } else {
-                    clientX = e.clientX;
-                    clientY = e.clientY;
-                }
-                return {
-                    x: (clientX - rect.left) * scaleX,
-                    y: (clientY - rect.top) * scaleY
-                };
-            };
-
-            const startDrawing = (e) => {
-                e.preventDefault();
-                const { x, y } = getCoordinates(e);
-                const ctx = canvasRef.current.getContext('2d');
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                setIsDrawing(true);
-            };
-
-            const draw = (e) => {
-                if (!isDrawing) return;
-                e.preventDefault();
-                const { x, y } = getCoordinates(e);
-                const ctx = canvasRef.current.getContext('2d');
-                ctx.lineTo(x, y);
-                ctx.stroke();
-                setHasContent(true);
-            };
-
-            const stopDrawing = () => {
-                if (isDrawing) {
-                    const ctx = canvasRef.current.getContext('2d');
-                    ctx.closePath();
-                    setIsDrawing(false);
-                    if (hasContent) {
-                        onSignatureChange(canvasRef.current.toDataURL('image/jpeg', 0.8));
-                    }
-                }
-            };
-
-            return (
-                <div className="relative w-full rounded-xl overflow-hidden border-2 border-slate-300 bg-white group hover:border-blue-400 transition-colors">
-                    {!hasContent && !isDrawing && (
-                        <div className="absolute inset-0 flex items-center justify-center text-slate-400 pointer-events-none select-none">
-                            <i className="fas fa-pen-nib mr-2"></i>
-                            Sila tandatangan di sini
-                        </div>
-                    )}
-                    <canvas
-                        ref={canvasRef}
-                        width={800} 
-                        height={300}
-                        className="signature-canvas w-full h-40 cursor-crosshair block"
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseOut={stopDrawing}
-                        onTouchStart={startDrawing}
-                        onTouchMove={draw}
-                        onTouchEnd={stopDrawing}
-                        onTouchCancel={stopDrawing}
-                    />
-                </div>
-            );
-        };
-
-        // --- Main App Component ---
-        const App = () => {
-            const [user, setUser] = useState(null);
-            const [activeRoom, setActiveRoom] = useState(ROOMS[0].id);
-            const [activeTab, setActiveTab] = useState('form'); 
-            const [records, setRecords] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [submitting, setSubmitting] = useState(false);
-            const [message, setMessage] = useState({ type: '', text: '' });
-            const [clearSigTrigger, setClearSigTrigger] = useState(0);
-            const [editingId, setEditingId] = useState(null);
-            const [showSignaturePad, setShowSignaturePad] = useState(true);
-            const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-
-            const [formData, setFormData] = useState({
-                date: new Date().toISOString().split('T')[0],
-                timeStart: '',
-                timeEnd: '',
-                userName: '',
-                className: '',
-                classOther: '',
-                subject: '',
-                usage: 'PDPC',
-                usageOther: '',
-                feedback: ''
-            });
-            const [signatureData, setSignatureData] = useState(null);
-
-            // --- Auth & Data Fetching Effect ---
-            useEffect(() => {
-                let unsubscribeSnapshot = null;
-
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            try {
-                                await auth.signInWithCustomToken(__initial_auth_token);
-                            } catch(e) {
-                                await auth.signInAnonymously();
-                            }
-                        } else {
-                            await auth.signInAnonymously();
-                        }
-                    } catch (err) {
-                        console.error("Authentication Error:", err);
-                        showMessage('error', 'Gagal menyambung ke pangkalan data.');
-                    }
-                };
-
-                initAuth();
-
-                const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
-                    setUser(currentUser);
-                    if (currentUser) {
-                        unsubscribeSnapshot = db.collection(collectionPath).onSnapshot((snapshot) => {
-                            const fetchedRecords = [];
-                            snapshot.forEach((doc) => {
-                                fetchedRecords.push({ id: doc.id, ...doc.data() });
-                            });
-                            fetchedRecords.sort((a, b) => {
-                                const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
-                                const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
-                                return timeB - timeA;
-                            });
-                            setRecords(fetchedRecords);
-                            setLoading(false);
-                        }, (error) => {
-                            console.error("Error fetching records:", error);
-                            setLoading(false);
-                        });
-                    }
-                });
-
-                return () => {
-                    unsubscribeAuth();
-                    if (unsubscribeSnapshot) unsubscribeSnapshot();
-                };
-            }, []);
-
-            const handleInputChange = (e) => {
-                const { name, value } = e.target;
-                setFormData(prev => ({ ...prev, [name]: value }));
-            };
-
-            const handleSignatureChange = (dataUrl) => {
-                setSignatureData(dataUrl);
-            };
-
-            const handleEdit = (record) => {
-                setEditingId(record.id);
-                const isStandardClass = CLASS_OPTIONS.includes(record.className);
-                setFormData({
-                    date: record.date || new Date().toISOString().split('T')[0],
-                    timeStart: record.timeStart || '',
-                    timeEnd: record.timeEnd || '',
-                    userName: record.userName || '',
-                    className: isStandardClass ? record.className : (record.className ? 'Lain-lain' : ''),
-                    classOther: isStandardClass ? '' : (record.className || ''),
-                    subject: record.subject || '',
-                    usage: ['PDPC', 'Mesyuarat', 'Taklimat', 'PLC'].includes(record.usage) ? record.usage : 'Lain-lain',
-                    usageOther: ['PDPC', 'Mesyuarat', 'Taklimat', 'PLC'].includes(record.usage) ? '' : record.usage,
-                    feedback: record.feedback === 'Tiada' ? '' : record.feedback
-                });
-                setSignatureData(record.signatureUrl);
-                setShowSignaturePad(!record.signatureUrl);
-                setActiveTab('form');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
-
-            const confirmDelete = async (id) => {
-                try {
-                    await db.collection(collectionPath).doc(id).delete();
-                    showMessage('success', 'Rekod berjaya dipadam.');
-                    setDeleteConfirmId(null);
-                } catch (error) {
-                    console.error("Error deleting document: ", error);
-                    showMessage('error', 'Ralat memadam rekod.');
-                }
-            };
-
-            const cancelEdit = () => {
-                setEditingId(null);
-                setFormData({
-                    date: new Date().toISOString().split('T')[0],
-                    timeStart: '',
-                    timeEnd: '',
-                    userName: '',
-                    className: '',
-                    classOther: '',
-                    subject: '',
-                    usage: 'PDPC',
-                    usageOther: '',
-                    feedback: ''
-                });
-                setClearSigTrigger(prev => prev + 1);
-                setSignatureData(null);
-                setShowSignaturePad(true);
-            };
-
-            const showMessage = (type, text) => {
-                setMessage({ type, text });
-                setTimeout(() => setMessage({ type: '', text: '' }), 4000);
-            };
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                if (!user) return;
-
-                if (!signatureData) {
-                    showMessage('error', 'Sila tandatangan sebelum menghantar borang.');
-                    return;
-                }
-
-                setSubmitting(true);
-
-                try {
-                    const dataToSave = {
-                        roomId: activeRoom,
-                        date: formData.date,
-                        timeStart: formData.timeStart,
-                        timeEnd: formData.timeEnd,
-                        userName: formData.userName,
-                        className: formData.className === 'Lain-lain' ? formData.classOther : formData.className,
-                        subject: formData.subject,
-                        usage: formData.usage === 'Lain-lain' ? formData.usageOther : formData.usage,
-                        feedback: formData.feedback || 'Tiada',
-                        signatureUrl: signatureData,
-                        userId: user.uid
-                    };
-
-                    if (editingId) {
-                        await db.collection(collectionPath).doc(editingId).update(dataToSave);
-                        showMessage('success', 'Rekod berjaya dikemaskini!');
-                    } else {
-                        dataToSave.timestamp = firebase.firestore.FieldValue.serverTimestamp();
-                        await db.collection(collectionPath).add(dataToSave);
-                        showMessage('success', 'Rekod berjaya disimpan!');
-                    }
-                    
-                    cancelEdit();
-                    setActiveTab('records');
-                } catch (error) {
-                    console.error("Error adding document: ", error);
-                    showMessage('error', 'Ralat menyimpan rekod. Sila cuba lagi.');
-                } finally {
-                    setSubmitting(false);
-                }
-            };
-
-            const formatTime = (timeString) => {
-                if (!timeString) return '';
-                const [hourString, minute] = timeString.split(':');
-                const hour = parseInt(hourString, 10);
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                const hour12 = hour % 12 || 12;
-                return `${hour12}:${minute} ${ampm}`;
-            };
-
-            const handlePrint = () => {
-                setTimeout(() => {
-                    window.print();
-                }, 300);
-            };
-
-            const filteredRecords = records.filter(r => r.roomId === activeRoom);
-            const activeRoomName = ROOMS.find(r => r.id === activeRoom)?.name || '';
-
-            return (
-                <div className="min-h-screen bg-slate-50 print:bg-white text-slate-800 font-sans p-4 md:p-8 print:p-0">
-                    <div className="max-w-6xl mx-auto space-y-6 print:space-y-2">
-                        
-                        <header className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6 print:border-none print:shadow-none print:mb-2 print:p-0">
-                            <div className="flex flex-col items-center text-center mb-6 print:mb-2">
-                                <img 
-                                    src="logo.png" 
-                                    alt="Logo SKPK Miri" 
-                                    className="w-24 h-24 md:w-28 md:h-28 object-contain mb-4 rounded-full shadow-sm bg-white print:shadow-none print:w-20 print:h-20 print:mb-2" 
-                                    onError={(e) => { e.target.style.display = 'none'; }} 
-                                />
-                                <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1 print:text-xl">Sistem Rekod Penggunaan Bilik Khas</h1>
-                                <h2 className="text-lg md:text-xl font-semibold text-blue-700 mb-2 print:text-base print:text-black">SK Pendidikan Khas Miri</h2>
-                                <p className="text-slate-500 text-sm md:text-base print:hidden">Sila pilih bilik dan isikan butiran penggunaan</p>
-                            </div>
-                            
-                            <div className="flex flex-wrap justify-center gap-3 print:hidden">
-                                {ROOMS.map(room => (
-                                    <button
-                                        key={room.id}
-                                        onClick={() => {
-                                            setActiveRoom(room.id);
-                                            setActiveTab('form');
-                                        }}
-                                        className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-                                            activeRoom === room.id 
-                                                ? 'bg-blue-600 text-white shadow-md shadow-blue-200 transform scale-105' 
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                                        }`}
-                                    >
-                                        <i className={`fas ${room.icon}`}></i>
-                                        {room.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </header>
-
-                        {message.text && (
-                            <div className={`p-4 rounded-xl border print:hidden ${
-                                message.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                            }`}>
-                                {message.text}
-                            </div>
-                        )}
-
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print:border-none print:shadow-none print:overflow-visible">
-                            <div className="flex border-b border-slate-200 print:hidden">
-                                <button
-                                    className={`flex-1 py-4 text-center font-medium transition-colors ${
-                                        activeTab === 'form' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                    }`}
-                                    onClick={() => {
-                                        setActiveTab('form');
-                                        if (editingId) cancelEdit();
-                                    }}
-                                >
-                                    {editingId ? 'Kemaskini Rekod' : 'Borang Penggunaan'}
-                                </button>
-                                <button
-                                    className={`flex-1 py-4 text-center font-medium transition-colors ${
-                                        activeTab === 'records' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                    }`}
-                                    onClick={() => setActiveTab('records')}
-                                >
-                                    Rekod ({filteredRecords.length})
-                                </button>
-                            </div>
-
-                            <div className="p-6 md:p-8 print:p-0">
-                                <div className="flex justify-between items-center mb-6 print:mb-2">
-                                    <h2 className="text-xl font-semibold flex items-center gap-2 print:text-lg">
-                                        <span className="w-2 h-6 bg-blue-600 rounded-full inline-block print:hidden"></span>
-                                        Rekod: {activeRoomName}
-                                    </h2>
-                                    
-                                    {activeTab === 'records' && (
-                                        <button 
-                                            onClick={handlePrint}
-                                            className="print:hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2"
-                                        >
-                                            <i className="fas fa-file-pdf"></i>
-                                            Cetak / PDF
-                                        </button>
-                                    )}
-                                </div>
-
-                                {activeTab === 'form' && (
-                                    <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl print:hidden">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Tarikh *</label>
-                                                <input 
-                                                    type="date" 
-                                                    name="date"
-                                                    required
-                                                    value={formData.date}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                                                />
-                                            </div>
-                                            <div className="flex gap-4">
-                                                <div className="flex-1">
-                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Masa Mula *</label>
-                                                    <input 
-                                                        type="time" 
-                                                        name="timeStart"
-                                                        required
-                                                        value={formData.timeStart}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                                                    />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Masa Tamat *</label>
-                                                    <input 
-                                                        type="time" 
-                                                        name="timeEnd"
-                                                        required
-                                                        value={formData.timeEnd}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Nama Pengguna (Guru/Staf) *</label>
-                                            <select
-                                                name="userName"
-                                                required
-                                                value={formData.userName}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
-                                            >
-                                                <option value="" disabled>-- Sila Pilih Nama --</option>
-                                                {STAFF_LIST.map((staff, index) => (
-                                                    <option key={index} value={staff}>{staff}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Kelas / Unit *</label>
-                                                <select
-                                                    name="className"
-                                                    required
-                                                    value={formData.className}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
-                                                >
-                                                    <option value="" disabled>-- Sila Pilih Kelas/Unit --</option>
-                                                    {CLASS_OPTIONS.map((cls, index) => (
-                                                        <option key={index} value={cls}>{cls}</option>
-                                                    ))}
-                                                </select>
-                                                {formData.className === 'Lain-lain' && (
-                                                    <input 
-                                                        type="text" 
-                                                        name="classOther"
-                                                        placeholder="Cth: Kelab ICT, Panitia BM, PPM"
-                                                        required={formData.className === 'Lain-lain'}
-                                                        value={formData.classOther}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition mt-2"
-                                                    />
-                                                )}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Mata Pelajaran * <span className="text-xs text-slate-400 font-normal">(Tulis '-' jika tiada)</span></label>
-                                                <input 
-                                                    type="text" 
-                                                    name="subject"
-                                                    placeholder="Mata Pelajaran"
-                                                    required
-                                                    value={formData.subject}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Kegunaan *</label>
-                                            <div className="flex flex-wrap gap-4">
-                                                {USAGE_OPTIONS.map(opt => (
-                                                    <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                                                        <input 
-                                                            type="radio" 
-                                                            name="usage" 
-                                                            value={opt}
-                                                            checked={formData.usage === opt}
-                                                            onChange={handleInputChange}
-                                                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                                                        />
-                                                        <span className="text-sm text-slate-700">{opt}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                            
-                                            {formData.usage === 'Lain-lain' && (
-                                                <input 
-                                                    type="text" 
-                                                    name="usageOther"
-                                                    placeholder="Sila nyatakan kegunaan..."
-                                                    required={formData.usage === 'Lain-lain'}
-                                                    value={formData.usageOther}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition mt-2"
-                                                />
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Aduan atau Makluman <span className="text-xs text-slate-400 font-normal">(Pilihan)</span></label>
-                                            <textarea 
-                                                name="feedback"
-                                                rows="3"
-                                                placeholder="Keadaan bilik selepas digunakan..."
-                                                value={formData.feedback}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition resize-none"
-                                            ></textarea>
-                                        </div>
-
-                                        <div>
-                                            <div className="flex justify-between items-end mb-2">
-                                                <label className="block text-sm font-medium text-slate-700">Tandatangan Digital *</label>
-                                                {showSignaturePad && (
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => setClearSigTrigger(prev => prev + 1)}
-                                                        className="text-xs text-red-600 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-md transition-colors"
-                                                    >
-                                                        <i className="fas fa-undo mr-1"></i> Padam & Mula Semula
-                                                    </button>
-                                                )}
-                                            </div>
-                                            
-                                            {!showSignaturePad && signatureData ? (
-                                                <div className="border-2 border-slate-200 rounded-lg p-4 bg-white flex flex-col items-center gap-3">
-                                                    <img src={signatureData} alt="Tandatangan" className="h-24 object-contain" />
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => {
-                                                            setShowSignaturePad(true); 
-                                                            setSignatureData(null); 
-                                                            setClearSigTrigger(prev => prev + 1);
-                                                        }}
-                                                        className="text-sm px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
-                                                    >
-                                                        <i className="fas fa-pen mr-2"></i>Tandatangan Semula
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <SignaturePad 
-                                                    onSignatureChange={handleSignatureChange} 
-                                                    clearTrigger={clearSigTrigger} 
-                                                />
-                                            )}
-                                        </div>
-
-                                        <div className="pt-4 border-t border-slate-100 flex flex-wrap gap-3">
-                                            <button 
-                                                type="submit" 
-                                                disabled={submitting || !user}
-                                                className="flex-1 md:flex-none px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-                                            >
-                                                {submitting ? (
-                                                    <><i className="fas fa-spinner fa-spin"></i> Menyimpan...</>
-                                                ) : (
-                                                    <><i className="fas fa-save"></i> {editingId ? 'Simpan Kemaskini' : 'Simpan Rekod'}</>
-                                                )}
-                                            </button>
-                                            
-                                            {editingId && (
-                                                <button 
-                                                    type="button" 
-                                                    onClick={cancelEdit}
-                                                    className="flex-1 md:flex-none px-8 py-3 bg-slate-100 text-slate-700 font-semibold rounded-lg shadow-sm hover:bg-slate-200 transition flex justify-center items-center gap-2"
-                                                >
-                                                    Batal
-                                                </button>
-                                            )}
-                                            
-                                            {!user && <p className="text-xs text-red-500 w-full mt-2">Menyambung ke pangkalan data...</p>}
-                                        </div>
-                                    </form>
-                                )}
-
-                                {activeTab === 'records' && (
-                                    <div className="overflow-x-auto table-container print:overflow-visible">
-                                        {loading ? (
-                                            <div className="py-12 text-center text-slate-500">
-                                                <i className="fas fa-circle-notch fa-spin text-2xl mb-2"></i>
-                                                <p>Memuatkan rekod...</p>
-                                            </div>
-                                        ) : filteredRecords.length === 0 ? (
-                                            <div className="py-12 text-center text-slate-500">
-                                                <i className="fas fa-folder-open text-3xl mb-2 text-slate-300"></i>
-                                                <p>Tiada rekod penggunaan untuk bilik ini setakat ini.</p>
-                                            </div>
-                                        ) : (
-                                            <table className="w-full text-xs text-left whitespace-nowrap print:whitespace-normal print:border-collapse print:border print:border-slate-300">
-                                                <thead className="text-slate-600 uppercase bg-slate-100 border-b border-slate-300 print:bg-slate-100">
-                                                    <tr>
-                                                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Tarikh & Masa</th>
-                                                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Pengguna</th>
-                                                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Kelas / Subjek</th>
-                                                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Kegunaan</th>
-                                                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Aduan / Makluman</th>
-                                                        <th className="px-3 py-2 font-semibold text-center print:border print:border-slate-300">Tandatangan</th>
-                                                        <th className="px-3 py-2 font-semibold text-center print:hidden sticky right-0 bg-slate-100 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] z-10">Tindakan</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-200 print:divide-slate-300">
-                                                    {filteredRecords.map((record) => (
-                                                        <tr key={record.id} className="hover:bg-slate-50 transition print:break-inside-avoid">
-                                                            <td className="px-3 py-2 print:border print:border-slate-300">
-                                                                <div className="font-medium text-slate-900">{record.date}</div>
-                                                                <div className="text-slate-500 text-[10px] mt-0.5">
-                                                                    {record.time ? record.time : `${formatTime(record.timeStart)} - ${formatTime(record.timeEnd)}`}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-3 py-2 font-medium text-slate-900 print:border print:border-slate-300">{record.userName}</td>
-                                                            <td className="px-3 py-2 print:border print:border-slate-300">
-                                                                <div className="font-medium">{record.className}</div>
-                                                                <div className="text-slate-500 text-[10px] mt-0.5">{record.subject}</div>
-                                                            </td>
-                                                            <td className="px-3 py-2 print:border print:border-slate-300">
-                                                                <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-medium border border-blue-100 print:border-none print:bg-transparent print:p-0 print:text-black">
-                                                                    {record.usage}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-3 py-2 max-w-[150px] truncate print:whitespace-normal print:max-w-none print:border print:border-slate-300" title={record.feedback}>
-                                                                {record.feedback}
-                                                            </td>
-                                                            <td className="px-3 py-1 flex justify-center print:border print:border-slate-300">
-                                                                {record.signatureUrl && (
-                                                                    <img src={record.signatureUrl} alt="Signature" className="h-8 object-contain print:h-10" />
-                                                                )}
-                                                            </td>
-                                                            <td className="px-3 py-2 text-center print:hidden sticky right-0 bg-white/95 backdrop-blur shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] z-10">
-                                                                {deleteConfirmId === record.id ? (
-                                                                    <div className="flex items-center justify-center gap-1">
-                                                                        <span className="text-[10px] text-red-600 font-medium">Pasti?</span>
-                                                                        <button onClick={() => confirmDelete(record.id)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-xs font-medium" title="Ya, Padam">
-                                                                            Ya
-                                                                        </button>
-                                                                        <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-slate-200 text-slate-700 rounded hover:bg-slate-300 transition text-xs font-medium" title="Batal">
-                                                                            Batal
-                                                                        </button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center justify-center gap-2">
-                                                                        <button 
-                                                                            onClick={() => handleEdit(record)}
-                                                                            className="px-2 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md transition flex items-center gap-1 text-xs font-medium"
-                                                                            title="Edit Rekod"
-                                                                        >
-                                                                            <i className="fas fa-edit"></i> Edit
-                                                                        </button>
-                                                                        <button 
-                                                                            onClick={() => setDeleteConfirmId(record.id)}
-                                                                            className="px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition flex items-center gap-1 text-xs font-medium"
-                                                                            title="Padam Rekod"
-                                                                        >
-                                                                            <i className="fas fa-trash-alt"></i> Padam
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        )}
-                                    </div>
-                                )}
-                                
-                            </div>
-                        </div>
+            <!-- Kategori 1: Pentadbiran & Pengurusan -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mt-6">
+                <button onclick="toggleMenu('menu-admin')" class="w-full p-4 md:p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                    <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="building-2" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">Pentadbiran & Pengurusan</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                        <i data-lucide="chevron-down" id="icon-menu-admin" class="w-5 h-5 transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div id="menu-admin" class="hidden border-t border-slate-100 bg-slate-50/50 p-4 md:p-5 menu-content">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                        <a href="https://sijilkepakaran.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="scroll" class="w-6 h-6 mb-2 text-indigo-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Galeri Sijil Guru</span>
+                        </a>
+                        <a href="#" onclick="showModal('Keberadaan Guru'); return false;" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="user-check" class="w-6 h-6 mb-2 text-emerald-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Keberadaan Guru</span>
+                        </a>
                     </div>
                 </div>
-            );
-        };
+            </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+            <!-- Kategori 2: Kurikulum -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <button onclick="toggleMenu('menu-kurikulum')" class="w-full p-4 md:p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="book-open" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">Kurikulum</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                        <i data-lucide="chevron-down" id="icon-menu-kurikulum" class="w-5 h-5 transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div id="menu-kurikulum" class="hidden border-t border-slate-100 bg-slate-50/50 p-4 md:p-5 menu-content">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                        <a href="https://eoprskpkmiri.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="file-text" class="w-6 h-6 mb-2 text-indigo-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">eOPR</span>
+                        </a>
+                        <a href="https://myalt.moe.gov.my/pages/more" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="folder-open" class="w-6 h-6 mb-2 text-amber-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">PAPR</span>
+                        </a>
+                        <a href="https://sistemidsekolah.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="graduation-cap" class="w-6 h-6 mb-2 text-pink-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">ID Delima Murid</span>
+                        </a>
+                        <a href="https://drive.google.com/file/d/1h3rQHDGSD8os7hCk4hetD5ktJXG-9OzI/view?usp=drivesdk" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="calendar-days" class="w-6 h-6 mb-2 text-emerald-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Jadual Waktu Kelas</span>
+                        </a>
+                        <a href="https://drive.google.com/file/d/1rdj_fBrpl2aTx_B-veVyYTJfSm-1Gn_h/view?usp=drivesdk" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="calendar-clock" class="w-6 h-6 mb-2 text-teal-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Jadual Waktu Guru</span>
+                        </a>
+                        <a href="https://minitcurai.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="clipboard-list" class="w-6 h-6 mb-2 text-blue-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Minit Curai</span>
+                        </a>
+                        <a href="https://erekodguru.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="notebook" class="w-6 h-6 mb-2 text-rose-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">eRekod Guru</span>
+                        </a>
+                    </div>
+
+                    <!-- Sub-kategori: Pusat Sumber Sekolah -->
+                    <div class="mt-6 mb-3 flex items-center gap-2">
+                        <i data-lucide="library" class="w-5 h-5 text-slate-400"></i>
+                        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Pusat Sumber Sekolah</h3>
+                        <div class="flex-1 h-px bg-slate-200 ml-2"></div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                        <a href="https://skpkmiri.rakmaya.com/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="book-marked" class="w-6 h-6 mb-2 text-cyan-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">eLibrary</span>
+                        </a>
+                        <a href="https://forms.gle/ywbnxqKTAuYU61od8" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="bookmark" class="w-6 h-6 mb-2 text-emerald-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Rekod Nilam</span>
+                        </a>
+                        <a href="#" onclick="showModal('Senarai Pengawas Perpustakaan'); return false;" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="user-check" class="w-6 h-6 mb-2 text-purple-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Pengawas PSS</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kategori 3: HEM (Hal Ehwal Murid) -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <button onclick="toggleMenu('menu-hem')" class="w-full p-4 md:p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                    <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="users" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-800 group-hover:text-rose-600 transition-colors">Hal Ehwal Murid (HEM)</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                        <i data-lucide="chevron-down" id="icon-menu-hem" class="w-5 h-5 transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div id="menu-hem" class="hidden border-t border-slate-100 bg-slate-50/50 p-4 md:p-5 menu-content">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                        <a href="https://idme.moe.gov.my/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="shield-check" class="w-6 h-6 mb-2 text-rose-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">IDME</span>
+                        </a>
+                        <a href="https://appsjohor.moe.gov.my/rmt/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="utensils" class="w-6 h-6 mb-2 text-red-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Laporan RMT</span>
+                        </a>
+                        <a href="https://laporangurubertugas.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="clipboard-check" class="w-6 h-6 mb-2 text-purple-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Laporan Guru Bertugas</span>
+                        </a>
+                        <a href="https://jadualgurubertugas.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="calendar" class="w-6 h-6 mb-2 text-orange-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Jadual Guru Bertugas</span>
+                        </a>
+                        <a href="#" onclick="showModal('Senarai Nama Pengawas'); return false;" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="user-check" class="w-6 h-6 mb-2 text-cyan-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Senarai Nama Pengawas</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kategori 4: Kokurikulum -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <button onclick="toggleMenu('menu-koko')" class="w-full p-4 md:p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                    <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="award" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-800 group-hover:text-orange-600 transition-colors">Kokurikulum</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                        <i data-lucide="chevron-down" id="icon-menu-koko" class="w-5 h-5 transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div id="menu-koko" class="hidden border-t border-slate-100 bg-slate-50/50 p-4 md:p-5 menu-content">
+                    
+                    <!-- Menu Umum Kokurikulum -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                        <a href="https://sites.google.com/moe-dl.edu.my/kkskpkmiri/home" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="layout-dashboard" class="w-6 h-6 mb-2 text-sky-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Pengurusan Koko</span>
+                        </a>
+                        <a href="https://erekodkoku.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="clipboard-edit" class="w-6 h-6 mb-2 text-indigo-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Rekod Koko</span>
+                        </a>
+                        <a href="https://senaraiahlikelab.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="contact-2" class="w-6 h-6 mb-2 text-violet-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Senarai Ahli</span>
+                        </a>
+                        <a href="https://jadualperjumpaankoko.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="calendar-check" class="w-6 h-6 mb-2 text-emerald-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Jadual Perjumpaan</span>
+                        </a>
+                        <a href="#" onclick="showModal('Jadual Penggunaan Baju'); return false;" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="shirt" class="w-6 h-6 mb-2 text-pink-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Jadual Baju</span>
+                        </a>
+                        <a href="#" onclick="showModal('Pekeliling'); return false;" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="file-badge" class="w-6 h-6 mb-2 text-amber-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Pekeliling</span>
+                        </a>
+                        <a href="https://sites.google.com/moe-dl.edu.my/skpkmiri/pencapaian" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="trophy" class="w-6 h-6 mb-2 text-yellow-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Pencapaian Murid</span>
+                        </a>
+                    </div>
+
+                    <!-- Sub-kategori: Rumah Sukan (Tema Pokemon) -->
+                    <div class="mt-6 mb-3 flex items-center gap-2">
+                        <i data-lucide="flag" class="w-5 h-5 text-slate-400"></i>
+                        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Rumah Sukan</h3>
+                        <div class="flex-1 h-px bg-slate-200 ml-2"></div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+                        <a href="https://canva.link/charmander" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-red-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="flame" class="w-6 h-6 mb-2 text-red-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-red-600 leading-tight">Charmander</span>
+                        </a>
+                        <a href="https://canva.link/bulbasaur" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-green-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="leaf" class="w-6 h-6 mb-2 text-green-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-green-600 leading-tight">Bulbasaur</span>
+                        </a>
+                        <a href="https://canva.link/w6m59yj0sjlf1cw" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-blue-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="droplet" class="w-6 h-6 mb-2 text-blue-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-blue-600 leading-tight">Squirtle</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kategori 5: PIBG (Selepas Kokurikulum) -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <button onclick="toggleMenu('menu-pibg')" class="w-full p-4 md:p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="heart-handshake" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-800 group-hover:text-amber-600 transition-colors">PIBG</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                        <i data-lucide="chevron-down" id="icon-menu-pibg" class="w-5 h-5 transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div id="menu-pibg" class="hidden border-t border-slate-100 bg-slate-50/50 p-4 md:p-5 menu-content">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                        <a href="https://sites.google.com/moe-dl.edu.my/skpkmiri/pibg" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="external-link" class="w-6 h-6 mb-2 text-amber-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Laman Rasmi PIBG</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kategori 6: Pengurusan Fasiliti -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <button onclick="toggleMenu('menu-fasiliti')" class="w-full p-4 md:p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                    <div class="w-12 h-12 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="monitor" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-800 group-hover:text-violet-600 transition-colors">Pengurusan Fasiliti</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                        <i data-lucide="chevron-down" id="icon-menu-fasiliti" class="w-5 h-5 transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div id="menu-fasiliti" class="hidden border-t border-slate-100 bg-slate-50/50 p-4 md:p-5 menu-content">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                        <a href="https://penggunaan-bilik-khas.sekolah-8943-cm1.workers.dev/" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="key" class="w-6 h-6 mb-2 text-cyan-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Rekod Bilik Khas</span>
+                        </a>
+                        <a href="#" onclick="showModal('Rekod Penggunaan Peranti ICT'); return false;" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="laptop" class="w-6 h-6 mb-2 text-violet-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Rekod Peranti ICT</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kategori 7: Galeri Sekolah -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <button onclick="toggleMenu('menu-galeri')" class="w-full p-4 md:p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                    <div class="w-12 h-12 bg-cyan-100 text-cyan-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="images" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-800 group-hover:text-cyan-600 transition-colors">Galeri Sekolah</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                        <i data-lucide="chevron-down" id="icon-menu-galeri" class="w-5 h-5 transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div id="menu-galeri" class="hidden border-t border-slate-100 bg-slate-50/50 p-4 md:p-5 menu-content">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                        <a href="https://sites.google.com/moe-dl.edu.my/skpkmiri/galeri" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <i data-lucide="image" class="w-6 h-6 mb-2 text-cyan-500 group-hover/item:scale-110 transition-transform"></i>
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Galeri Foto & Video</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kategori 8: Media Sosial -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <button onclick="toggleMenu('menu-sosial')" class="w-full p-4 md:p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors group">
+                    <div class="w-12 h-12 bg-pink-100 text-pink-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="smartphone" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h2 class="text-lg md:text-xl font-bold text-slate-800 group-hover:text-pink-600 transition-colors">Media Sosial</h2>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
+                        <i data-lucide="chevron-down" id="icon-menu-sosial" class="w-5 h-5 transition-transform duration-300"></i>
+                    </div>
+                </button>
+                <div id="menu-sosial" class="hidden border-t border-slate-100 bg-slate-50/50 p-4 md:p-5 menu-content">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+                        <a href="https://www.facebook.com/share/1FKUYx4kx7/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <img src="facebook.png" alt="Facebook" class="w-7 h-7 mb-2 object-contain group-hover/item:scale-110 transition-transform">
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">Facebook</span>
+                        </a>
+                        <a href="https://www.tiktok.com/@skpkmiri?_r=1&_t=ZS-95cvsqHTYWH" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <img src="tiktok.png" alt="TikTok" class="w-7 h-7 mb-2 object-contain group-hover/item:scale-110 transition-transform">
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">TikTok</span>
+                        </a>
+                        <a href="https://www.youtube.com/channel/UCTJSBprlduP_gc1zleh1uKQ" target="_blank" rel="noopener noreferrer" class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all border border-slate-100 flex flex-col items-center text-center group/item">
+                            <img src="youtube.png" alt="YouTube" class="w-7 h-7 mb-2 object-contain group-hover/item:scale-110 transition-transform">
+                            <span class="text-xs md:text-sm font-bold text-slate-700 leading-tight">YouTube</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-16 text-center text-slate-400 text-sm font-medium">
+            <p>&copy; <span id="current-year"></span> Unit ICT SKPK Miri. Hanya untuk kegunaan warga SKPK Miri.</p>
+        </div>
+    </div>
+
+    <!-- Kotak Pop-up (Modal) untuk pautan yang belum ada -->
+    <div id="system-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="modal-content">
+            <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-5 border-4 border-amber-50">
+                <i data-lucide="construction" class="w-10 h-10"></i>
+            </div>
+            <h3 id="modal-title" class="text-2xl font-bold text-center text-slate-800 mb-3">Tajuk Modul</h3>
+            <p class="text-center text-slate-500 mb-8 font-medium leading-relaxed">Harap maklum, pautan untuk sistem ini sedang diselenggara atau belum ditetapkan buat masa ini.</p>
+            <button onclick="closeModal()" class="w-full bg-slate-800 text-white rounded-2xl py-3.5 font-bold hover:bg-slate-700 hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                Tutup Makluman
+            </button>
+        </div>
+    </div>
+
+    <!-- Skrip Aplikasi -->
+    <script>
+        // 1. Memulakan semua ikon Lucide
+        lucide.createIcons();
+
+        // 2. Skrip untuk Jam Digital Terkini
+        function updateClock() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateStr = now.toLocaleDateString('ms-MY', options);
+            const timeStr = now.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            document.getElementById('live-clock').textContent = `${dateStr} | ${timeStr}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Tetapkan tahun semasa di bahagian footer
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        // 3. Skrip Buka/Tutup Menu (Accordion)
+        function toggleMenu(menuId) {
+            const menuContent = document.getElementById(menuId);
+            const icon = document.getElementById('icon-' + menuId);
+            
+            if (menuContent.classList.contains('hidden')) {
+                // Buka menu
+                menuContent.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else {
+                // Tutup menu
+                menuContent.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        }
+
+        // 4. Skrip Kawalan Pop-up (Modal)
+        function showModal(title) {
+            const modal = document.getElementById('system-modal');
+            const modalContent = document.getElementById('modal-content');
+            const modalTitle = document.getElementById('modal-title');
+            
+            modalTitle.textContent = title;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('system-modal');
+            const modalContent = document.getElementById('modal-content');
+            
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+
+        document.getElementById('system-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
     </script>
 </body>
 </html>
