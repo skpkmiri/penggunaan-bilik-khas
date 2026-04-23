@@ -1,0 +1,802 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+
+// --- Firebase Initialization ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+// --- Pemalar Tetapan ---
+const ROOMS = [
+  { id: 'bilik-mesyuarat', name: 'Bilik Mesyuarat', icon: 'fa-users' },
+  { id: 'makmal-sains', name: 'Makmal Sains', icon: 'fa-flask' },
+  { id: 'surau', name: 'Surau / Bilik Agama', icon: 'fa-moon' },
+  { id: 'bilik-komputer', name: 'Bilik Komputer', icon: 'fa-desktop' },
+  { id: 'pusat-sumber', name: 'Pusat Sumber Sekolah', icon: 'fa-book' }
+];
+
+const USAGE_OPTIONS = ['PDPC', 'Mesyuarat', 'Taklimat', 'PLC', 'Lain-lain'];
+
+const CLASS_OPTIONS = [
+  '1 BP', '2 BP', '3 BP', '4 BP', '5 BP', '6 BP',
+  '1 BD', '3 BD', '4 BD', '5 BD', '6 BD', '4BL',
+  'Lain-lain'
+];
+
+const STAFF_LIST = [
+  "AZIZ BIN TAHIR",
+  "MOHAMAD ABIDIN BIN SIPEK",
+  "LING MEE CHOO",
+  "SALIHIN BIN AHMAD",
+  "AIDA MASTURINA BINTI HAMKA",
+  "AIFA NUR BESTARI BINTI RADUAN",
+  "BRYAN ANAK CONSTANT",
+  "CHRISTIAN SIMON",
+  "DLIYANA ANAK JOHN",
+  "EIFILISIA AMBER ANAK MERVIN",
+  "FAZRI BIN BAKERI",
+  "HAIROL BIN ISMAIL",
+  "HILWA HAYATI BINTI MOHAMAD AJALAN",
+  "JACQUELINE TIONG HOE DING",
+  "JERIAH ANAK SIMON",
+  "JIMMY ANAK PETER",
+  "KHAIRI BIN SAHARI",
+  "MARY JANE AMOI UMPANG ANAK DANIEL MAWAT",
+  "MOHD RAFEEQ BIN SULAIMAN",
+  "MUHAMMAD ZULHUSAINI BIN ABDUL WAHAB",
+  "NUR HIDAYU BINTI YUSOP",
+  "NURUL HUDA BTE MOHD IHWAN",
+  "NUR AZLIN BINTI NORIZAN",
+  "NUR FADZLIAH AMAL BINTI OSMAN",
+  "SABARIAH BINTI SOLHI",
+  "SYAEEZA LIANA BINTI RAMLI",
+  "TENG RU YUN",
+  "TING HUA EE",
+  "TING YU YONG",
+  "VANITHA A/P SUBRAMANIAM",
+  "WONG PICK KING",
+  "ZEPRINA ANAK BENIK",
+  "NORMIRI BINTI ABDULLAH",
+  "HAZUANI BINTI HIPNI",
+  "HELLEN RANJA ANAK BELI",
+  "NORAISYAH BINTI ASHARI",
+  "KAMARIA BINTI BUJANG",
+  "AZENI BIN MAT",
+  "EVELYN SENA ANAK USSIK",
+  "MARIATI BINTI JULAIHI",
+  "ALEXANDER LIPA ANAK RANTIE"
+];
+
+// --- Signature Pad Component ---
+const SignaturePad = ({ onSignatureChange, clearTrigger }) => {
+    const canvasRef = React.useRef(null);
+    const [isDrawing, setIsDrawing] = React.useState(false);
+    const [hasContent, setHasContent] = React.useState(false);
+
+    React.useEffect(() => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#1e293b'; 
+    }, []);
+
+    React.useEffect(() => {
+        if (clearTrigger > 0) {
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            setHasContent(false);
+            onSignatureChange(null);
+        }
+    }, [clearTrigger]);
+
+    const getCoordinates = (e) => {
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        let clientX, clientY;
+
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    };
+
+    const startDrawing = (e) => {
+        e.preventDefault();
+        const { x, y } = getCoordinates(e);
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        setIsDrawing(true);
+    };
+
+    const draw = (e) => {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const { x, y } = getCoordinates(e);
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        setHasContent(true);
+    };
+
+    const stopDrawing = () => {
+        if (isDrawing) {
+            const ctx = canvasRef.current.getContext('2d');
+            ctx.closePath();
+            setIsDrawing(false);
+            
+            if (hasContent) {
+                onSignatureChange(canvasRef.current.toDataURL('image/jpeg', 0.8));
+            }
+        }
+    };
+
+    return (
+        <div className="relative w-full rounded-xl overflow-hidden border-2 border-slate-300 bg-white group hover:border-blue-400 transition-colors">
+            {!hasContent && !isDrawing && (
+                <div className="absolute inset-0 flex items-center justify-center text-slate-400 pointer-events-none select-none">
+                    <i className="fas fa-pen-nib mr-2"></i>
+                    Sila tandatangan di sini
+                </div>
+            )}
+            <canvas
+                ref={canvasRef}
+                width={800} 
+                height={300}
+                className="signature-canvas w-full h-40 cursor-crosshair block"
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseOut={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+                onTouchCancel={stopDrawing}
+            />
+        </div>
+    );
+};
+
+// --- Main App Component ---
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [activeRoom, setActiveRoom] = useState(ROOMS[0].id);
+  const [activeTab, setActiveTab] = useState('form'); 
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [clearSigTrigger, setClearSigTrigger] = useState(0);
+  const [editingId, setEditingId] = useState(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(true);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    timeStart: '',
+    timeEnd: '',
+    userName: '',
+    className: '',
+    classOther: '',
+    subject: '',
+    usage: 'PDPC',
+    usageOther: '',
+    feedback: ''
+  });
+  
+  const [signatureData, setSignatureData] = useState(null);
+
+  // --- Auth & Data Fetching Effect ---
+  useEffect(() => {
+    let unsubscribeSnapshot = null;
+
+    const initFirebase = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Authentication Error:", err);
+      }
+    };
+
+    initFirebase();
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'room_bookings');
+        unsubscribeSnapshot = onSnapshot(recordsRef, (snapshot) => {
+          const fetchedRecords = [];
+          snapshot.forEach((doc) => {
+            fetchedRecords.push({ id: doc.id, ...doc.data() });
+          });
+          fetchedRecords.sort((a, b) => {
+            const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+            const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+            return timeB - timeA;
+          });
+          setRecords(fetchedRecords);
+          setLoading(false);
+        }, (error) => {
+          console.error("Error fetching records:", error);
+          setLoading(false);
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
+  }, []);
+
+  // --- Form Handlers ---
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSignatureChange = (dataUrl) => {
+    setSignatureData(dataUrl);
+  };
+
+  const handleEdit = (record) => {
+    setEditingId(record.id);
+    const isStandardClass = CLASS_OPTIONS.includes(record.className);
+    setFormData({
+      date: record.date || new Date().toISOString().split('T')[0],
+      timeStart: record.timeStart || '',
+      timeEnd: record.timeEnd || '',
+      userName: record.userName || '',
+      className: isStandardClass ? record.className : (record.className ? 'Lain-lain' : ''),
+      classOther: isStandardClass ? '' : (record.className || ''),
+      subject: record.subject || '',
+      usage: ['PDPC', 'Mesyuarat', 'Taklimat', 'PLC'].includes(record.usage) ? record.usage : 'Lain-lain',
+      usageOther: ['PDPC', 'Mesyuarat', 'Taklimat', 'PLC'].includes(record.usage) ? '' : record.usage,
+      feedback: record.feedback === 'Tiada' ? '' : record.feedback
+    });
+    setSignatureData(record.signatureUrl);
+    setShowSignaturePad(!record.signatureUrl);
+    setActiveTab('form');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const confirmDelete = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'room_bookings', id));
+      showMessage('success', 'Rekod berjaya dipadam.');
+      setDeleteConfirmId(null);
+    } catch (error) {
+      console.error("Error deleting document: ", error);
+      showMessage('error', 'Ralat memadam rekod.');
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setFormData({
+        date: new Date().toISOString().split('T')[0],
+        timeStart: '',
+        timeEnd: '',
+        userName: '',
+        className: '',
+        classOther: '',
+        subject: '',
+        usage: 'PDPC',
+        usageOther: '',
+        feedback: ''
+    });
+    setClearSigTrigger(prev => prev + 1);
+    setSignatureData(null);
+    setShowSignaturePad(true);
+  };
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: '', text: '' }), 4000);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+
+    if (!signatureData) {
+      showMessage('error', 'Sila tandatangan sebelum menghantar borang.');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'room_bookings');
+      
+      const dataToSave = {
+        roomId: activeRoom,
+        date: formData.date,
+        timeStart: formData.timeStart,
+        timeEnd: formData.timeEnd,
+        userName: formData.userName,
+        className: formData.className === 'Lain-lain' ? formData.classOther : formData.className,
+        subject: formData.subject,
+        usage: formData.usage === 'Lain-lain' ? formData.usageOther : formData.usage,
+        feedback: formData.feedback || 'Tiada',
+        signatureUrl: signatureData,
+        userId: user.uid
+      };
+
+      if (editingId) {
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'room_bookings', editingId);
+        await updateDoc(docRef, dataToSave);
+        showMessage('success', 'Rekod berjaya dikemaskini!');
+      } else {
+        dataToSave.timestamp = serverTimestamp();
+        await addDoc(recordsRef, dataToSave);
+        showMessage('success', 'Rekod berjaya disimpan!');
+      }
+      
+      // Reset Form
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        timeStart: '',
+        timeEnd: '',
+        userName: '',
+        className: '',
+        classOther: '',
+        subject: '',
+        usage: 'PDPC',
+        usageOther: '',
+        feedback: ''
+      });
+      setClearSigTrigger(prev => prev + 1);
+      setSignatureData(null);
+      setActiveTab('records');
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      showMessage('error', 'Ralat menyimpan rekod. Sila cuba lagi.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formatTime = (timeString) => {
+    if (!timeString) return '';
+    const [hourString, minute] = timeString.split(':');
+    const hour = parseInt(hourString, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minute} ${ampm}`;
+  };
+
+  const handlePrint = () => {
+    // Tambah sedikit delay untuk pastikan browser sedia untuk mencetak
+    setTimeout(() => {
+      window.print();
+    }, 300);
+  };
+
+  const filteredRecords = records.filter(r => r.roomId === activeRoom);
+  const activeRoomName = ROOMS.find(r => r.id === activeRoom)?.name || '';
+
+  return (
+    <div className="min-h-screen bg-slate-50 print:bg-white text-slate-800 font-sans p-4 md:p-8 print:p-0">
+      <div className="max-w-6xl mx-auto space-y-6 print:space-y-2">
+        
+        {/* Header Section */}
+        <header className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6 print:border-none print:shadow-none print:mb-2 print:p-0">
+          <div className="flex flex-col items-center text-center mb-6 print:mb-2">
+            <img 
+              src="logo.png" 
+              alt="Logo SKPK Miri" 
+              className="w-24 h-24 md:w-28 md:h-28 object-contain mb-4 rounded-full shadow-sm bg-white print:shadow-none print:w-20 print:h-20 print:mb-2" 
+              onError={(e) => { e.target.style.display = 'none'; }} 
+            />
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1 print:text-xl">Sistem Rekod Penggunaan Bilik Khas</h1>
+            <h2 className="text-lg md:text-xl font-semibold text-blue-700 mb-2 print:text-base print:text-black">SK Pendidikan Khas Miri</h2>
+            <p className="text-slate-500 text-sm md:text-base print:hidden">Sila pilih bilik dan isikan butiran penggunaan</p>
+          </div>
+          
+          {/* Room Filter Buttons (Hidden on Print) */}
+          <div className="flex flex-wrap justify-center gap-3 print:hidden">
+            {ROOMS.map(room => (
+              <button
+                key={room.id}
+                onClick={() => {
+                  setActiveRoom(room.id);
+                  setActiveTab('form');
+                }}
+                className={`px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
+                  activeRoom === room.id 
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-200 transform scale-105' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                }`}
+              >
+                <i className={`fas ${room.icon}`}></i>
+                {room.name}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        {/* Status Message (Hidden on Print) */}
+        {message.text && (
+          <div className={`p-4 rounded-xl border print:hidden ${
+            message.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+          }`}>
+            {message.text}
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print:border-none print:shadow-none print:overflow-visible">
+          {/* Tabs (Hidden on Print) */}
+          <div className="flex border-b border-slate-200 print:hidden">
+            <button
+              className={`flex-1 py-4 text-center font-medium transition-colors ${
+                activeTab === 'form' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+              }`}
+              onClick={() => {
+                setActiveTab('form');
+                if (editingId) cancelEdit();
+              }}
+            >
+              {editingId ? 'Kemaskini Rekod' : 'Borang Penggunaan'}
+            </button>
+            <button
+              className={`flex-1 py-4 text-center font-medium transition-colors ${
+                activeTab === 'records' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+              }`}
+              onClick={() => setActiveTab('records')}
+            >
+              Rekod ({filteredRecords.length})
+            </button>
+          </div>
+
+          <div className="p-6 md:p-8 print:p-0">
+            <div className="flex justify-between items-center mb-6 print:mb-2">
+                <h2 className="text-xl font-semibold flex items-center gap-2 print:text-lg">
+                  <span className="w-2 h-6 bg-blue-600 rounded-full inline-block print:hidden"></span>
+                  Rekod: {activeRoomName}
+                </h2>
+                
+                {/* Print Button - Only show in Records Tab */}
+                {activeTab === 'records' && (
+                    <button 
+                        onClick={handlePrint}
+                        className="print:hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                    >
+                        <i className="fas fa-file-pdf"></i>
+                        Cetak / PDF
+                    </button>
+                )}
+            </div>
+
+            {/* TAB: FORM (Hidden on Print) */}
+            {activeTab === 'form' && (
+              <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl print:hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Tarikh *</label>
+                    <input 
+                      type="date" 
+                      name="date"
+                      required
+                      value={formData.date}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    />
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Masa Mula *</label>
+                      <input 
+                        type="time" 
+                        name="timeStart"
+                        required
+                        value={formData.timeStart}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Masa Tamat *</label>
+                      <input 
+                        type="time" 
+                        name="timeEnd"
+                        required
+                        value={formData.timeEnd}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Nama Pengguna (Guru/Staf) *</label>
+                  <select
+                    name="userName"
+                    required
+                    value={formData.userName}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
+                  >
+                    <option value="" disabled>-- Sila Pilih Nama --</option>
+                    {STAFF_LIST.map((staff, index) => (
+                      <option key={index} value={staff}>{staff}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Kelas / Unit *</label>
+                    <select
+                      name="className"
+                      required
+                      value={formData.className}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white"
+                    >
+                      <option value="" disabled>-- Sila Pilih Kelas/Unit --</option>
+                      {CLASS_OPTIONS.map((cls, index) => (
+                        <option key={index} value={cls}>{cls}</option>
+                      ))}
+                    </select>
+                    {formData.className === 'Lain-lain' && (
+                      <input 
+                        type="text" 
+                        name="classOther"
+                        placeholder="Cth: Kelab ICT, Panitia BM, PPM"
+                        required={formData.className === 'Lain-lain'}
+                        value={formData.classOther}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition mt-2"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Mata Pelajaran * <span className="text-xs text-slate-400 font-normal">(Tulis '-' jika tiada)</span></label>
+                    <input 
+                      type="text" 
+                      name="subject"
+                      placeholder="Mata Pelajaran"
+                      required
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Kegunaan *</label>
+                  <div className="flex flex-wrap gap-4">
+                    {USAGE_OPTIONS.map(opt => (
+                      <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name="usage" 
+                          value={opt}
+                          checked={formData.usage === opt}
+                          onChange={handleInputChange}
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-slate-700">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  {formData.usage === 'Lain-lain' && (
+                    <input 
+                      type="text" 
+                      name="usageOther"
+                      placeholder="Sila nyatakan kegunaan..."
+                      required={formData.usage === 'Lain-lain'}
+                      value={formData.usageOther}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition mt-2"
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Aduan atau Makluman <span className="text-xs text-slate-400 font-normal">(Pilihan)</span></label>
+                  <textarea 
+                    name="feedback"
+                    rows="3"
+                    placeholder="Keadaan bilik selepas digunakan..."
+                    value={formData.feedback}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition resize-none"
+                  ></textarea>
+                </div>
+
+                {/* Digital Signature Canvas */}
+                <div>
+                  <div className="flex justify-between items-end mb-2">
+                    <label className="block text-sm font-medium text-slate-700">Tandatangan Digital *</label>
+                    {showSignaturePad && (
+                        <button 
+                          type="button" 
+                          onClick={() => setClearSigTrigger(prev => prev + 1)}
+                          className="text-xs text-red-600 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-md transition-colors"
+                        >
+                          <i className="fas fa-undo mr-1"></i> Padam & Mula Semula
+                        </button>
+                    )}
+                  </div>
+                  
+                  {!showSignaturePad && signatureData ? (
+                      <div className="border-2 border-slate-200 rounded-lg p-4 bg-white flex flex-col items-center gap-3">
+                          <img src={signatureData} alt="Tandatangan" className="h-24 object-contain" />
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                                setShowSignaturePad(true); 
+                                setSignatureData(null); 
+                                setClearSigTrigger(prev => prev + 1);
+                            }}
+                            className="text-sm px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                          >
+                              <i className="fas fa-pen mr-2"></i>Tandatangan Semula
+                          </button>
+                      </div>
+                  ) : (
+                      <SignaturePad 
+                        onSignatureChange={handleSignatureChange} 
+                        clearTrigger={clearSigTrigger} 
+                      />
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex flex-wrap gap-3">
+                  <button 
+                    type="submit" 
+                    disabled={submitting || !user}
+                    className="flex-1 md:flex-none px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                  >
+                    {submitting ? (
+                      <><i className="fas fa-spinner fa-spin"></i> Menyimpan...</>
+                    ) : (
+                      <><i className="fas fa-save"></i> {editingId ? 'Simpan Kemaskini' : 'Simpan Rekod'}</>
+                    )}
+                  </button>
+                  
+                  {editingId && (
+                      <button 
+                        type="button" 
+                        onClick={cancelEdit}
+                        className="flex-1 md:flex-none px-8 py-3 bg-slate-100 text-slate-700 font-semibold rounded-lg shadow-sm hover:bg-slate-200 transition flex justify-center items-center gap-2"
+                      >
+                        Batal
+                      </button>
+                  )}
+                  
+                  {!user && <p className="text-xs text-red-500 w-full mt-2">Menyambung ke pangkalan data...</p>}
+                </div>
+              </form>
+            )}
+
+            {/* TAB: RECORDS */}
+            {activeTab === 'records' && (
+              <div className="overflow-x-auto table-container print:overflow-visible">
+                {loading ? (
+                  <div className="py-12 text-center text-slate-500">
+                    <i className="fas fa-circle-notch fa-spin text-2xl mb-2"></i>
+                    <p>Memuatkan rekod...</p>
+                  </div>
+                ) : filteredRecords.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500">
+                    <i className="fas fa-folder-open text-3xl mb-2 text-slate-300"></i>
+                    <p>Tiada rekod penggunaan untuk bilik ini setakat ini.</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-xs text-left whitespace-nowrap print:whitespace-normal print:border-collapse print:border print:border-slate-300">
+                    <thead className="text-slate-600 uppercase bg-slate-100 border-b border-slate-300 print:bg-slate-100">
+                      <tr>
+                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Tarikh & Masa</th>
+                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Pengguna</th>
+                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Kelas / Subjek</th>
+                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Kegunaan</th>
+                        <th className="px-3 py-2 font-semibold print:border print:border-slate-300">Aduan / Makluman</th>
+                        <th className="px-3 py-2 font-semibold text-center print:border print:border-slate-300">Tandatangan</th>
+                        <th className="px-3 py-2 font-semibold text-center print:hidden sticky right-0 bg-slate-100 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] z-10">Tindakan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 print:divide-slate-300">
+                      {filteredRecords.map((record) => (
+                        <tr key={record.id} className="hover:bg-slate-50 transition print:break-inside-avoid">
+                          <td className="px-3 py-2 print:border print:border-slate-300">
+                            <div className="font-medium text-slate-900">{record.date}</div>
+                            <div className="text-slate-500 text-[10px] mt-0.5">
+                                {record.time ? record.time : `${formatTime(record.timeStart)} - ${formatTime(record.timeEnd)}`}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 font-medium text-slate-900 print:border print:border-slate-300">{record.userName}</td>
+                          <td className="px-3 py-2 print:border print:border-slate-300">
+                            <div className="font-medium">{record.className}</div>
+                            <div className="text-slate-500 text-[10px] mt-0.5">{record.subject}</div>
+                          </td>
+                          <td className="px-3 py-2 print:border print:border-slate-300">
+                            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-medium border border-blue-100 print:border-none print:bg-transparent print:p-0 print:text-black">
+                              {record.usage}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 max-w-[150px] truncate print:whitespace-normal print:max-w-none print:border print:border-slate-300" title={record.feedback}>
+                            {record.feedback}
+                          </td>
+                          <td className="px-3 py-1 flex justify-center print:border print:border-slate-300">
+                            {record.signatureUrl && (
+                              <img src={record.signatureUrl} alt="Signature" className="h-8 object-contain print:h-10" />
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center print:hidden sticky right-0 bg-white/95 backdrop-blur shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                              {deleteConfirmId === record.id ? (
+                                  <div className="flex items-center justify-center gap-1">
+                                      <span className="text-[10px] text-red-600 font-medium">Pasti?</span>
+                                      <button onClick={() => confirmDelete(record.id)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-xs font-medium" title="Ya, Padam">
+                                          Ya
+                                      </button>
+                                      <button onClick={() => setDeleteConfirmId(null)} className="px-2 py-1 bg-slate-200 text-slate-700 rounded hover:bg-slate-300 transition text-xs font-medium" title="Batal">
+                                          Batal
+                                      </button>
+                                  </div>
+                              ) : (
+                                  <div className="flex items-center justify-center gap-2">
+                                      <button 
+                                          onClick={() => handleEdit(record)}
+                                          className="px-2 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md transition flex items-center gap-1 text-xs font-medium"
+                                          title="Edit Rekod"
+                                      >
+                                          <i className="fas fa-edit"></i> Edit
+                                      </button>
+                                      <button 
+                                          onClick={() => setDeleteConfirmId(record.id)}
+                                          className="px-2 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition flex items-center gap-1 text-xs font-medium"
+                                          title="Padam Rekod"
+                                      >
+                                          <i className="fas fa-trash-alt"></i> Padam
+                                      </button>
+                                  </div>
+                              )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+            
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
