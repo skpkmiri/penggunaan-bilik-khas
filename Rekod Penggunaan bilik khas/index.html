@@ -4,7 +4,16 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
 import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 // --- Firebase Initialization ---
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const firebaseConfig = {
+  apiKey: "AIzaSyAJystIPJw8wsARLExAgOS94AgO8-QIzN8",
+  authDomain: "penggunaan-bilik-khas.firebaseapp.com",
+  projectId: "penggunaan-bilik-khas",
+  storageBucket: "penggunaan-bilik-khas.firebasestorage.app",
+  messagingSenderId: "956304510491",
+  appId: "1:956304510491:web:8d072aa8ac919b5bf0b2be",
+  measurementId: "G-BSY6FT0W51"
+};
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -216,7 +225,11 @@ export default function App() {
     const initFirebase = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
+          try {
+             await signInWithCustomToken(auth, __initial_auth_token);
+          } catch(e) {
+             await signInAnonymously(auth);
+          }
         } else {
           await signInAnonymously(auth);
         }
@@ -394,7 +407,6 @@ export default function App() {
   };
 
   const handlePrint = () => {
-    // Tambah sedikit delay untuk pastikan browser sedia untuk mencetak
     setTimeout(() => {
       window.print();
     }, 300);
