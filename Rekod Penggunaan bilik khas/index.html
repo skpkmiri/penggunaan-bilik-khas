@@ -106,17 +106,14 @@
             "MARIATI BINTI JULAIHI", "ALEXANDER LIPA ANAK RANTIE"
         ];
 
-        // Data awal dari CSV
+        // Data awal dari PDF Bilik Mesyuarat
         const SEED_DATA = [
-          { date: "2026-01-26", timeStart: "07:10", timeEnd: "08:40", userName: "Teng Ru Yun", className: "5 BD", subject: "Sains", usage: "PDPC", feedback: "Bilik dalam keadaan bersih." },
-          { date: "2026-01-26", timeStart: "08:40", timeEnd: "09:40", userName: "Salihin bin Ahmad", className: "3 BD", subject: "Sains", usage: "PDPC", feedback: "Peralatan disimpan dengan teratur." },
-          { date: "2026-02-02", timeStart: "12:00", timeEnd: "13:00", userName: "Zeprina anak Benik", className: "4 BD", subject: "Sains", usage: "PDPC", feedback: "Tiada kerosakan dilaporkan." },
-          { date: "2026-02-10", timeStart: "07:40", timeEnd: "09:10", userName: "Zeprina anak Benik", className: "6 BD", subject: "Sains", usage: "PDPC", feedback: "Meja telah dilap selepas eksperimen." },
-          { date: "2026-02-10", timeStart: "11:30", timeEnd: "12:30", userName: "Teng Ru Yun", className: "6 BP", subject: "SSAS", usage: "PDPC", feedback: "Semua suis ditutup selepas guna." },
-          { date: "2026-02-18", timeStart: "07:40", timeEnd: "09:10", userName: "Teng Ru Yun", className: "5 BP", subject: "SSAS", usage: "PDPC", feedback: "Bilik dikunci dengan sempurna." },
-          { date: "2026-02-18", timeStart: "09:10", timeEnd: "10:10", userName: "Ling Mee Choo", className: "4BL", subject: "Sains", usage: "PDPC", feedback: "Keadaan bilik memuaskan." },
-          { date: "2026-02-26", timeStart: "09:10", timeEnd: "10:10", userName: "Nur Hidayu binti Yusop", className: "1 BD", subject: "Sains", usage: "PDPC", feedback: "Murid berdisiplin semasa di bilik." },
-          { date: "2026-03-06", timeStart: "07:10", timeEnd: "08:40", userName: "Teng Ru Yun", className: "5 BD", subject: "Sains", usage: "PDPC", feedback: "" }
+            { roomId: 'bilik-mesyuarat', date: "2026-04-23", timeStart: "14:30", timeEnd: "16:30", userName: "DLIYANA ANAK JOHN", className: "Lain-lain", classOther: "Panitia BI", subject: "Bahasa Inggeris", usage: "Lain-lain", usageOther: "LDP PENATARAN PAPR DAN LDP ENGLISH", feedback: "Tiada" },
+            { roomId: 'bilik-mesyuarat', date: "2026-04-24", timeStart: "10:00", timeEnd: "11:00", userName: "ZEPRINA ANAK BENIK", className: "Lain-lain", classOther: "UNIT KESIHATAN", subject: "-", usage: "Lain-lain", usageOther: "PROGRAM BERUS GIGI", feedback: "Meja dan kerusi telah disusun semula ke susunan asal." },
+            { roomId: 'bilik-mesyuarat', date: "2026-03-30", timeStart: "15:00", timeEnd: "16:30", userName: "AZENI BIN MAT", className: "Lain-lain", classOther: "Pengurusan Kewangan", subject: "-", usage: "Mesyuarat", feedback: "Tiada" },
+            { roomId: 'bilik-mesyuarat', date: "2026-02-11", timeStart: "14:30", timeEnd: "16:00", userName: "KHAIRI BIN SAHARI", className: "Lain-lain", classOther: "Panitia Bahasa Isyarat", subject: "-", usage: "Lain-lain", usageOther: "LDP Bahasa Isyarat", feedback: "Tiada" },
+            { roomId: 'bilik-mesyuarat', date: "2026-01-15", timeStart: "14:30", timeEnd: "16:00", userName: "AZENI BIN MAT", className: "Lain-lain", classOther: "Pengurusan Kewangan", subject: "-", usage: "Mesyuarat", feedback: "Tiada" },
+            { roomId: 'bilik-mesyuarat', date: "2026-01-10", timeStart: "14:00", timeEnd: "16:30", userName: "SABARIAH BINTI SOLHI", className: "Lain-lain", classOther: "Semua Guru", subject: "-", usage: "Mesyuarat", feedback: "Mesyuarat Guru Bil.1/2026" }
         ];
 
         // --- Signature Pad Component ---
@@ -144,7 +141,7 @@
                     setHasContent(false);
                     onSignatureChange(null);
                 }
-            }, [clearTrigger]);
+            }, [clearTrigger, onSignatureChange]);
 
             const getCoordinates = (e) => {
                 const canvas = canvasRef.current;
@@ -249,45 +246,49 @@
             });
             const [signatureData, setSignatureData] = useState(null);
 
-            // --- Fungsi Seed Data ---
+            // --- Fungsi Seed Data Pintar ---
             const seedData = async (uid) => {
                 try {
-                    // Semak jika data sudah ada dengan mencari satu dokumen
-                    const snapshot = await db.collection(collectionPath).limit(1).get();
+                    const recordsRef = db.collection(collectionPath);
+                    const snapshot = await recordsRef.get();
+                    const existingRecords = [];
                     
-                    if (snapshot.empty) {
-                        console.log("Menambah data awal dari CSV...");
-                        for (const item of SEED_DATA) {
-                            try {
-                                let matchedName = STAFF_LIST.find(s => s.toLowerCase() === item.userName.toLowerCase());
-                                if(!matchedName) {
-                                    matchedName = STAFF_LIST.find(s => s.toLowerCase().includes(item.userName.toLowerCase()) || item.userName.toLowerCase().includes(s.toLowerCase()));
-                                }
+                    snapshot.forEach(doc => {
+                        existingRecords.push(doc.data());
+                    });
 
-                                let cleanClassName = item.className.replace(/\s/g, '');
-                                let matchedClass = CLASS_OPTIONS.find(c => c.replace(/\s/g, '') === cleanClassName);
+                    for (const item of SEED_DATA) {
+                        // Semak jika rekod untuk tarikh & bilik & masa yang sama dah wujud
+                        const isExist = existingRecords.some(r => 
+                            r.roomId === item.roomId && 
+                            r.date === item.date && 
+                            r.timeStart === item.timeStart
+                        );
 
-                                await db.collection(collectionPath).add({
-                                    roomId: 'makmal-sains',
-                                    date: item.date,
-                                    timeStart: item.timeStart,
-                                    timeEnd: item.timeEnd,
-                                    userName: matchedName || item.userName,
-                                    className: matchedClass || 'Lain-lain',
-                                    subject: item.subject,
-                                    usage: item.usage,
-                                    feedback: item.feedback || 'Tiada',
-                                    signatureUrl: null,
-                                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                                    userId: uid
-                                });
-                            } catch (error) {
-                                console.error("Ralat menambah rekod individu awal:", error);
+                        if (!isExist) {
+                            let matchedName = STAFF_LIST.find(s => s.toLowerCase() === item.userName.toLowerCase());
+                            if(!matchedName) {
+                                matchedName = STAFF_LIST.find(s => s.toLowerCase().includes(item.userName.toLowerCase()) || item.userName.toLowerCase().includes(s.toLowerCase()));
                             }
+
+                            await recordsRef.add({
+                                roomId: item.roomId,
+                                date: item.date,
+                                timeStart: item.timeStart,
+                                timeEnd: item.timeEnd,
+                                userName: matchedName || item.userName,
+                                className: item.className === 'Lain-lain' ? item.classOther : item.className,
+                                subject: item.subject,
+                                usage: item.usage === 'Lain-lain' ? item.usageOther : item.usage,
+                                feedback: item.feedback,
+                                signatureUrl: null, // Biar kosong utk rekod lama
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                userId: uid
+                            });
                         }
                     }
                 } catch(err) {
-                    console.error("Ralat menyemak data sedia ada:", err);
+                    console.error("Ralat menyemak/menambah data sedia ada:", err);
                 }
             };
 
@@ -318,6 +319,7 @@
                     setUser(currentUser);
                     if (currentUser) {
                         
+                        // Masukkan rekod jika belum ada
                         await seedData(currentUser.uid);
 
                         unsubscribeSnapshot = db.collection(collectionPath).onSnapshot((snapshot) => {
@@ -325,10 +327,11 @@
                             snapshot.forEach((doc) => {
                                 fetchedRecords.push({ id: doc.id, ...doc.data() });
                             });
+                            // Sort by Date + Time descending
                             fetchedRecords.sort((a, b) => {
                                 const dateA = a.date + (a.timeStart || '');
                                 const dateB = b.date + (b.timeStart || '');
-                                return dateB.localeCompare(dateA); // Sort descending (newest first)
+                                return dateB.localeCompare(dateA); 
                             });
                             setRecords(fetchedRecords);
                             setLoading(false);
@@ -474,7 +477,7 @@
             const activeRoomName = ROOMS.find(r => r.id === activeRoom)?.name || '';
 
             return (
-                <div className="min-h-screen bg-slate-50 print:bg-white text-slate-800 p-4 md:p-8 print:p-0">
+                <div className="min-h-screen bg-slate-50 print:bg-white text-slate-800 font-sans p-4 md:p-8 print:p-0">
                     <div className="max-w-6xl mx-auto space-y-6 print:space-y-2">
                         
                         <header className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6 print:border-none print:shadow-none print:mb-2 print:p-0">
